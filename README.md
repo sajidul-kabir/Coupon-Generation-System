@@ -18,7 +18,8 @@ CREATE TABLE users (
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
-2. coupons
+2. `coupons`
+3. 
 Stores coupons with two types: USER_SPECIFIC and TIME_SPECIFIC.
 
 ```sql
@@ -37,7 +38,8 @@ CREATE TABLE coupons (
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL
 );
 ```
-3. coupon_redemptions
+3. `coupon_redemptions`
+4. 
 Tracks coupon usage for auditing.
 
 
