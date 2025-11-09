@@ -54,7 +54,7 @@ CREATE TABLE coupon_redemptions (
 ```
 
 API Endpoints
-1.  GET /coupons
+1.  GET api/coupons
 Lists all coupons.
 
 Response Example:
@@ -72,7 +72,7 @@ Response Example:
 ]
 ```
 
-2. POST /coupons
+2. POST api/coupons
 Generates a coupon (user-specific or time-specific).
 
 Request Body Example (User-Specific):
@@ -108,7 +108,7 @@ Response:
   "discount": 20
 }
 ```
-3. POST /coupons/validate
+3. POST api/coupons/validate
 Validates a coupon.
 
 Request Body Example (User-Specific):
