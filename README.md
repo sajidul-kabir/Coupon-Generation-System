@@ -54,65 +54,7 @@ CREATE TABLE coupon_redemptions (
 ```
 
 API Endpoints
-1. POST /coupons/generate
-Generates a coupon (user-specific or time-specific).
-
-Request Body Example (User-Specific):
-
-```{
-  "type": "user",
-  "userId": 1,
-  "discount": 20
-}
-```
-Request Body Example (Time-Specific):
-
-```{
-  "type": "time",
-  "discount": 25.5,
-  "validFrom": "2025-11-10 00:00:00",
-  "validTo": "2025-11-20 23:59:59",
-  "maxRedemptions": 100
-}
-```
-Response:
-
-```{
-  "id": 1,
-  "code": "TTLX",
-  "type": "USER_SPECIFIC",
-  "discount": 20
-}
-```
-2. POST /coupons/validate
-Validates a coupon.
-
-Request Body Example (User-Specific):
-
-```
-{
-  "code": "TTLX",
-  "userId": 1
-}
-```
-Request Body Example (Time-Specific):
-
-```
-{
-  "code": "TTLX",
-  "userId": 2
-}
-```
-Response:
-
-```
-{
-  "valid": true,
-  "message": "Coupon applied successfully",
-  "discount": 25.5
-}
-```
-3. GET /coupons
+1.  GET /coupons
 Lists all coupons.
 
 Response Example:
@@ -129,6 +71,78 @@ Response Example:
   }
 ]
 ```
+
+2. POST /coupons
+Generates a coupon (user-specific or time-specific).
+
+Request Body Example (User-Specific):
+
+```
+{
+  "type": "user",
+  "userId": 1,
+  "discount": 20,
+  "code" : "ABC1"
+}
+```
+Request Body Example (Time-Specific):
+
+```
+{
+  "type": "time",
+  "discount": 25.5,
+  "validFrom": "2025-11-10 00:00:00",
+  "validTo": "2025-11-20 23:59:59",
+  "maxRedemptions": 100,
+  "code" : "TTX1"
+
+}
+```
+Response:
+
+```
+{
+  "id": 1,
+  "code": "ABC1",
+  "type": "USER_SPECIFIC",
+  "discount": 20
+}
+```
+3. POST /coupons/validate
+Validates a coupon.
+
+Request Body Example (User-Specific):
+
+```
+{
+  "code": "ABC1",
+  "userId": 1
+}
+```
+Request Body Example (Time-Specific):
+
+```
+{
+  "code": "TTLX",
+  "userId": 2
+}
+```
+Response:
+
+```
+{
+  "valid": true,
+  "message": "Coupon valid",
+  "discount": 25.5
+}
+```
+```
+{
+  "valid": false,
+  "message": "Coupon has reached its maximum redemption",
+  "discount": 25.5
+}
+```
 Implementation Details
 Project Structure
 
@@ -142,51 +156,76 @@ project/
 │   │   └─ couponService.js
 │   ├─ repositories/
 │   │   └─ couponRepository.js
-│   ├─ db.js
+│   ├─ config/
+|   |   └─ mysqlConfig.js
 │   └─ server.js
+|   └─ app.js
 │
 └─ package.json
 ```
-# Validation
+## Validation
 
 - **Used Zod** for request body validation.  
 - Ensures required fields exist and have correct types.
 
 ---
 
-# Coupon Types
+## Coupon Types
 
-## USER_SPECIFIC
+### USER_SPECIFIC
 - Linked to a single user.  
 - Can be redeemed **once**.
 
-## TIME_SPECIFIC
+### TIME_SPECIFIC
 - Valid within `validFrom` and `validTo`.  
 - Can be redeemed **multiple times** by multiple users.  
-- Tracks total redemptions via:
-  - `redemptions` column  
-  - `coupon_redemptions` table  
+- Tracks total redemptions of an user via: 
+  - `coupon_redemptions` table, then compared with `maxRedemtion` column
 
 ---
 
-# Coupon Validation Logic
+## Coupon Validation Logic
 
 - Checks **type** (`USER_SPECIFIC` or `TIME_SPECIFIC`).
 
 ## For user-specific coupons:
 - Validates **user ownership**.  
 - Checks **redeemed status**.  
-- Marks coupon as **redeemed** after successful validation.
 
 ## For time-specific coupons:
 - Validates current date against `validFrom` and `validTo`.  
 - Checks count of redemtion in `Coupon_redemtion` table and compare against `maxRedemptions` in `coupons` table.
-- 
 ---
 
-# Database Integration
+## Database Integration
 
 - Used **MySQL** with the `mysql2` Node.js package.  
 - Queries are executed via a **repository layer** for separation of concerns.
+
+##  Development Tradeoffs
+
+* **Database Access (Raw SQL):**
+    * **Pro:** Fastest way to write queries when familiar with SQL, zero overhead from setting up an ORM.
+    * **Con:** High **risk of SQL injection** (if prepared statements are missed) and creates **tight coupling**; schema changes break code in the repository layer.
+
+* **Language Choice (JavaScript):**
+    * **Pro:** Eliminates TypeScript setup time and compilation overhead.
+    * **Con:** **Lacks compile-time safety**, meaning type-related bugs are only discovered **at runtime**, severely impacting future maintenance and refactoring confidence.
+
+* **Validation (Minimal Zod):**
+    * **Pro:** Quickly ensures only required fields are present to fulfill the core API contract.
+    * **Con:** **Incomplete input sanitation** for optional fields or complex business rules (e.g., date formats, range checks), pushing error handling into the service layer.
+
+* **Architectural Separation (Tight Coupling):**
+    * **Pro:** Simpler code; data can be passed directly from controller to repository.
+    * **Con:** **Violates separation of concerns**. Service logic is rigid and harder to reuse outside of the Express route context, making the codebase brittle.
+
+* **Error Handling:**
+    * **Pro:** Focuses on simple 400/500 responses to meet the endpoint requirements.
+    * **Con:** **Poor Observability** and **inconsistent API response format**. Lacks centralized error middleware for structured logging and helpful, actionable messages for consumers.
+
+* **Coupon Logic (Simplified State Management):**
+    * **Pro:** Quickly implements distinct validation paths for `USER_SPECIFIC` (redeemed status) and `TIME_SPECIFIC` (redemption count).
+    * **Con:** Potential for **inconsistent state bugs** if the `redeemed` boolean in the `coupons` table isn't maintained correctly across both types, leading to auditing difficulties.
 
 ---
